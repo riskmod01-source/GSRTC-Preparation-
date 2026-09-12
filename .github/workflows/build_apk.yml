@@ -1,4 +1,4 @@
-name: Build Flutter APK
+name: Build APK
 
 on:
   push:
@@ -10,31 +10,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Flutter
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: true
 
-      - name: Recreate Android Project Template
-        run: flutter create . --platforms=android
-
-      - name: Get Dependencies
+      - name: Get dependencies
         run: flutter pub get
 
-      - name: Build Release APK
+      # આ સ્ટેપ નવો લોગો ઓટોમેટિક જનરેટ કરશે
+      - name: Generate App Icons
+        run: dart run flutter_launcher_icons
+
+      - name: Build APK
         run: flutter build apk --release
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: gsrtc-sarthi-release-apk
