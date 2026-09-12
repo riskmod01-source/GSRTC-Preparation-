@@ -24,10 +24,12 @@ jobs:
         with:
           channel: 'stable'
 
+      - name: Recreate Android Project Files
+        run: flutter create . --platforms=android --org=com.example
+
       - name: Get dependencies
         run: flutter pub get
 
-      # આ સ્ટેપ નવો લોગો ઓટોમેટિક જનરેટ કરશે
       - name: Generate App Icons
         run: dart run flutter_launcher_icons
 
