@@ -27,7 +27,7 @@ jobs:
       - name: Recreate Android Project Files
         run: flutter create . --platforms=android --org=com.example
 
-      # Firebase ફાઇલને યોગ્ય જગ્યાએ મૂકવા માટે
+      # Firebase ફાઈલને યોગ્ય જગ્યાએ મૂકવા માટે
       - name: Setup Firebase Config
         run: |
           if [ -f google-services.json ]; then
@@ -39,9 +39,14 @@ jobs:
 
       - name: Generate App Icons
         run: dart run flutter_launcher_icons
+
+      # SHA-1 અને SHA-256 કી પ્રિન્ટ કરવા માટે
       - name: Get SHA-1 Key
-        run: cd android && ./gradlew signingReport
-      
+        run: |
+          mkdir -p ~/.android
+          keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
+
       - name: Build APK
         run: flutter build apk --release
 
