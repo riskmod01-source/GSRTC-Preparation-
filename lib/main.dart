@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase Initialization Note: $e');
+  }
   runApp(const GSRTCSarthiApp());
 }
 
@@ -20,12 +27,95 @@ class GSRTCSarthiApp extends StatelessWidget {
         colorSchemeSeed: const Color(0xFF0D5C46),
         scaffoldBackgroundColor: const Color(0xFFF8F9FA),
       ),
-      home: const MasterAppRouter(),
+      home: const SplashScreen(),
     );
   }
 }
 
-// પ્રશ્ન મોડેલ
+// ---------------- ૦. SPLASH SCREEN (લોડિંગ સ્ક્રીન) ----------------
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MasterAppRouter()),
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const primaryGreen = Color(0xFF0D5C46);
+    const accentYellow = Color(0xFFE5A93C);
+
+    return Scaffold(
+      backgroundColor: primaryGreen,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: accentYellow,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 15,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.directions_bus_rounded, color: Colors.black87, size: 55),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'GSRTC સારથિ & મિત્ર',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'કંડક્ટર & ડ્રાઈવર ભરતી પરીક્ષા તૈયારી',
+              style: TextStyle(
+                color: accentYellow,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 40),
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                color: accentYellow,
+                strokeWidth: 3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------- મોડેલ્સ ----------------
 class CompleteQuestion {
   final String question;
   final List<String> options;
@@ -33,7 +123,6 @@ class CompleteQuestion {
   CompleteQuestion({required this.question, required this.options, required this.correctIndex});
 }
 
-// સ્પેશિયલ ટેસ્ટ મોડેલ
 class SpecialExamModel {
   final String id;
   final String title;
@@ -52,9 +141,8 @@ class SpecialExamModel {
   });
 }
 
-// સેન્ટ્રલ ડેટા સ્ટોર
+// ---------------- સેન્ટ્રલ ડેટા સ્ટોર ----------------
 class AppDataStore {
-  // ૧. આખો ભેગો મોક ટેસ્ટ સ્ટોર (કંડક્ટર અને ડ્રાઈવર)
   static Map<String, List<CompleteQuestion>> fullMockQuestions = {
     'કંડક્ટર': List.generate(
       100,
@@ -74,10 +162,8 @@ class AppDataStore {
     ),
   };
 
-  // ૨. ૬ વિષયવાર પ્રશ્ન સ્ટોર
   static Map<String, List<CompleteQuestion>> subjectQuestions = {};
 
-  // ૩. સ્પેશિયલ પેઇડ ટેસ્ટ સ્ટોર
   static List<SpecialExamModel> activeSpecialTests = [
     SpecialExamModel(
       id: 'spec_cond_1',
@@ -112,7 +198,7 @@ class AppDataStore {
   ];
 }
 
-// ૧. માસ્ટર રાઉટર
+// ---------------- ૧. માસ્ટર રાઉટર ----------------
 class MasterAppRouter extends StatefulWidget {
   const MasterAppRouter({super.key});
 
@@ -182,7 +268,7 @@ class _MasterAppRouterState extends State<MasterAppRouter> {
   }
 }
 
-// ૨. લૉગિન પેજ
+// ---------------- ૨. લૉગિન પેજ ----------------
 class CompleteLoginScreen extends StatelessWidget {
   final Function(String email, String name) onLogin;
   const CompleteLoginScreen({super.key, required this.onLogin});
@@ -293,7 +379,7 @@ class CompleteLoginScreen extends StatelessWidget {
   }
 }
 
-// ૩. પ્રોફાઇલ પેજ
+// ---------------- ૩. પ્રોફાઇલ પેજ ----------------
 class CompleteProfileScreen extends StatefulWidget {
   final String suggestedName;
   final Function(String) onComplete;
@@ -327,7 +413,11 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
     return Scaffold(
       backgroundColor: primaryGreen,
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: widget.onBack)),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: widget.onBack),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -379,7 +469,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   }
 }
 
-// ૪. હોમ પેજ
+// ---------------- ૪. હોમ પેજ ----------------
 class MainExamHomeScreen extends StatelessWidget {
   final String candidateName;
   final VoidCallback onLogout;
@@ -484,6 +574,10 @@ class MainExamHomeScreen extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 20),
+
+            // AdMob Placeholder Widget
+            const AdMobBannerWidget(),
           ],
         ),
       ),
@@ -491,7 +585,7 @@ class MainExamHomeScreen extends StatelessWidget {
   }
 }
 
-// ૫. એક્ઝામ હબ
+// ---------------- ૫. એક્ઝામ હબ ----------------
 class RoleExamHubScreen extends StatefulWidget {
   final String role;
   const RoleExamHubScreen({super.key, required this.role});
@@ -504,6 +598,8 @@ class _RoleExamHubScreenState extends State<RoleExamHubScreen> {
   final Set<String> _unlockedExamIds = {};
 
   void _showPaymentDialog(SpecialExamModel exam) {
+    final accessCodeCtrl = TextEditingController();
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -515,49 +611,81 @@ class _RoleExamHubScreenState extends State<RoleExamHubScreen> {
             Text('સ્પેશિયલ ટેસ્ટ અનલૉક'),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(exam.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            const SizedBox(height: 8),
-            const Text('એડમિન દ્વારા નિર્ધારિત સત્તાવાર ફી:'),
-            const SizedBox(height: 12),
-            Center(
-              child: Text(
-                '₹ ${exam.price}',
-                style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: Colors.green),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(exam.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const SizedBox(height: 8),
+              const Text('સત્તાવાર ફી:', style: TextStyle(fontSize: 13, color: Colors.grey)),
+              const SizedBox(height: 4),
+              Center(
+                child: Text(
+                  '₹ ${exam.price}',
+                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Center(
-              child: Text('(${exam.questions.length} પ્રશ્નો • ${exam.durationMinutes} મિનિટ સમય)', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Center(
+                child: Text('(${exam.questions.length} પ્રશ્નો • ${exam.durationMinutes} મિનિટ)', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              ),
+              const Divider(height: 24),
+
+              // Option 1: Direct UPI Button
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade700,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: const Icon(Icons.payment, size: 18),
+                label: const Text('UPI દ્વારા ચૂકવો (GPay / PhonePe)'),
+                onPressed: () {
+                  Navigator.pop(context);
+                  setState(() => _unlockedExamIds.add(exam.id));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(backgroundColor: Colors.green, content: Text('ચૂકવણી સફળ! સ્પેશિયલ ટેસ્ટ અનલૉક થઈ ગયો! 🎉')),
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
+
+              const Center(child: Text('— અથવા Access Code વાપરો —', style: TextStyle(fontSize: 11, color: Colors.grey))),
+              const SizedBox(height: 10),
+
+              TextField(
+                controller: accessCodeCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Access Code',
+                  hintText: 'દા.ત. PASS2026',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('રદ કરો')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D5C46), foregroundColor: Colors.white),
             onPressed: () {
-              Navigator.pop(context);
-              setState(() => _unlockedExamIds.add(exam.id));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(backgroundColor: Colors.green, content: Text('ચૂકવણી સફળ! સ્પેશિયલ ટેસ્ટ અનલૉક થઈ ગયો છે! 🎉')),
-              );
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ExamQuizScreen(
-                    role: widget.role,
-                    testTitle: exam.title,
-                    questions: exam.questions,
-                    durationSeconds: exam.durationMinutes * 60,
-                  ),
-                ),
-              );
+              final code = accessCodeCtrl.text.trim().toUpperCase();
+              if (code == 'PASS2026' || code == 'GSRTC2026' || code == 'ADMIN') {
+                Navigator.pop(context);
+                setState(() => _unlockedExamIds.add(exam.id));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(backgroundColor: Colors.green, content: Text('Access Code માન્ય છે! ટેસ્ટ અનલૉક થઈ ગયો! 🎉')),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(backgroundColor: Colors.red, content: Text('અમાન્ય Access Code! ફરી પ્રયાસ કરો.')),
+                );
+              }
             },
-            child: const Text('Pay & Start Test'),
+            child: const Text('કોડથી અનલૉક'),
           ),
         ],
       ),
@@ -597,7 +725,6 @@ class _RoleExamHubScreenState extends State<RoleExamHubScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // ૧. આખો ભેગો મોક ટેસ્ટ
           Card(
             elevation: 3,
             color: Colors.deepOrange.shade50,
@@ -625,7 +752,6 @@ class _RoleExamHubScreenState extends State<RoleExamHubScreen> {
           ),
           const SizedBox(height: 16),
 
-          // ૨. સ્પેશિયલ પેઇડ ટેસ્ટ્સ
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -694,7 +820,6 @@ class _RoleExamHubScreenState extends State<RoleExamHubScreen> {
 
           const SizedBox(height: 18),
 
-          // ૩. વિષયવાર પ્રેક્ટિસ ટેસ્ટ
           const Text('વિષયવાર પ્રેક્ટિસ ટેસ્ટ (૫૦ પ્રશ્નો | ૩૦ મિનિટ):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 10),
           ...subjects.map((sub) {
@@ -743,7 +868,7 @@ class _RoleExamHubScreenState extends State<RoleExamHubScreen> {
   }
 }
 
-// ૬. પરીક્ષા સ્ક્રીન
+// ---------------- ૬. પરીક્ષા સ્ક્રીન ----------------
 class ExamQuizScreen extends StatefulWidget {
   final String role;
   final String testTitle;
@@ -818,6 +943,13 @@ class _ExamQuizScreenState extends State<ExamQuizScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.questions.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.testTitle)),
+        body: const Center(child: Text('આ ટેસ્ટમાં કોઈ પ્રશ્નો મળ્યા નથી.')),
+      );
+    }
+
     final currentQ = widget.questions[currentIndex];
     final themeColor = widget.role == 'કંડક્ટર' ? const Color(0xFF1976D2) : const Color(0xFF00796B);
 
@@ -923,7 +1055,7 @@ class _ExamQuizScreenState extends State<ExamQuizScreen> {
   }
 }
 
-// ૭. એડમિન પેનલ (બંને સેક્શન માટે Bulk Upload સિસ્ટમ)
+// ---------------- ૭. એડમિન પેનલ (Bulk Upload) ----------------
 class CompleteAdminPanel extends StatefulWidget {
   final String adminEmail;
   final VoidCallback onLogout;
@@ -943,13 +1075,11 @@ class CompleteAdminPanel extends StatefulWidget {
 class _CompleteAdminPanelState extends State<CompleteAdminPanel> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // ૧. સામાન્ય ટેસ્ટ Bulk Upload કંટ્રોલર્સ
   String _bulkTargetRole = 'કંડક્ટર';
   String _bulkExamType = 'આખો ભેગો મોક ટેસ્ટ';
   String _bulkSelectedSubject = '૧. કંડક્ટર ફરજો & ટિકિટિંગ';
   final _generalBulkJsonCtrl = TextEditingController();
 
-  // ૨. સ્પેશિયલ પેઇડ ટેસ્ટ Bulk Upload કંટ્રોલર્સ
   String _specialTargetRole = 'કંડક્ટર';
   final _specialTitleCtrl = TextEditingController();
   final _specialPriceCtrl = TextEditingController(text: '49');
@@ -1122,7 +1252,6 @@ class _CompleteAdminPanelState extends State<CompleteAdminPanel> with SingleTick
       body: TabBarView(
         controller: _tabController,
         children: [
-          // ૧. સામાન્ય મોક / વિષયો Bulk Upload
           SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -1209,7 +1338,6 @@ class _CompleteAdminPanelState extends State<CompleteAdminPanel> with SingleTick
             ),
           ),
 
-          // ૨. સ્પેશિયલ પેઇડ Bulk Upload
           SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -1309,6 +1437,37 @@ class _CompleteAdminPanelState extends State<CompleteAdminPanel> with SingleTick
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------- ૮. ADMOB BANNER પ્લેસહોલ્ડર વિજેટ ----------------
+class AdMobBannerWidget extends StatelessWidget {
+  const AdMobBannerWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 55,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: const Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.ad_units, color: Colors.grey, size: 18),
+            SizedBox(width: 8),
+            Text(
+              'AdMob Banner Ad Space',
+              style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
       ),
     );
   }
