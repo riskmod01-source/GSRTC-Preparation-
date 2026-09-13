@@ -104,7 +104,7 @@ class MasterAppRouter extends StatefulWidget {
 }
 
 class _MasterAppRouterState extends State<MasterAppRouter> {
-  static const String _adminEmail = 'thakor.xyz.admin@gsrtc.in';
+  static const String _adminEmail = 'riskmod01@gmail.com'
   int _currentStep = 1;
   String _currentUserEmail = '';
   String _currentUserName = '';
