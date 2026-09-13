@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    debugPrint('Firebase Initialization Note: $e');
-  }
+  await Firebase.initializeApp();
   runApp(const GSRTCSarthiApp());
 }
 
@@ -27,102 +26,32 @@ class GSRTCSarthiApp extends StatelessWidget {
         colorSchemeSeed: const Color(0xFF0D5C46),
         scaffoldBackgroundColor: const Color(0xFFF8F9FA),
       ),
-      home: const SplashScreen(),
+      home: const MasterAppRouter(),
     );
   }
 }
 
-// ---------------- ૦. SPLASH SCREEN (લોડિંગ સ્ક્રીન) ----------------
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
-
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen> {
-  @override
-  void initState() {
-    super.initState();
-    Timer(const Duration(seconds: 3), () {
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MasterAppRouter()),
-        );
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const primaryGreen = Color(0xFF0D5C46);
-    const accentYellow = Color(0xFFE5A93C);
-
-    return Scaffold(
-      backgroundColor: primaryGreen,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: accentYellow,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 15,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.directions_bus_rounded, color: Colors.black87, size: 55),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'GSRTC સારથિ & મિત્ર',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'કંડક્ટર & ડ્રાઈવર ભરતી પરીક્ષા તૈયારી',
-              style: TextStyle(
-                color: accentYellow,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 40),
-            const SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(
-                color: accentYellow,
-                strokeWidth: 3,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------- મોડેલ્સ ----------------
+// પ્રશ્ન મોડેલ
 class CompleteQuestion {
   final String question;
   final List<String> options;
   final int correctIndex;
   CompleteQuestion({required this.question, required this.options, required this.correctIndex});
+
+  Map<String, dynamic> toMap() => {
+    'question': question,
+    'options': options,
+    'correctIndex': correctIndex,
+  };
+
+  factory CompleteQuestion.fromMap(Map<String, dynamic> map) => CompleteQuestion(
+    question: map['question'] ?? '',
+    options: List<String>.from(map['options'] ?? []),
+    correctIndex: map['correctIndex'] ?? 0,
+  );
 }
 
+// સ્પેશિયલ ટેસ્ટ મોડેલ
 class SpecialExamModel {
   final String id;
   final String title;
@@ -139,66 +68,30 @@ class SpecialExamModel {
     required this.durationMinutes,
     required this.questions,
   });
-}
 
-// ---------------- સેન્ટ્રલ ડેટા સ્ટોર ----------------
-class AppDataStore {
-  static Map<String, List<CompleteQuestion>> fullMockQuestions = {
-    'કંડક્ટર': List.generate(
-      100,
-      (i) => CompleteQuestion(
-        question: 'કંડક્ટર ફુલ મોક પ્રશ્ન ${i + 1}: સિલેબસ આધારિત પ્રશ્ન વિગત?',
-        options: ['વિકલ્પ A (સાચો)', 'વિકલ્પ B', 'વિકલ્પ C', 'વિકલ્પ D'],
-        correctIndex: 0,
-      ),
-    ),
-    'ડ્રાઈવર': List.generate(
-      100,
-      (i) => CompleteQuestion(
-        question: 'ડ્રાઈવર ફુલ મોક પ્રશ્ન ${i + 1}: સિલેબસ આધારિત પ્રશ્ન વિગત?',
-        options: ['વિકલ્પ A (સાચો)', 'વિકલ્પ B', 'વિકલ્પ C', 'વિકલ્પ D'],
-        correctIndex: 0,
-      ),
-    ),
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'title': title,
+    'targetRole': targetRole,
+    'price': price,
+    'durationMinutes': durationMinutes,
+    'questions': questions.map((q) => q.toMap()).toList(),
   };
 
-  static Map<String, List<CompleteQuestion>> subjectQuestions = {};
-
-  static List<SpecialExamModel> activeSpecialTests = [
-    SpecialExamModel(
-      id: 'spec_cond_1',
-      title: 'કંડક્ટર મેગા સિલેક્શન ટેસ્ટ 2026',
-      targetRole: 'કંડક્ટર',
-      price: 49,
-      durationMinutes: 60,
-      questions: List.generate(
-        100,
-        (i) => CompleteQuestion(
-          question: 'કંડક્ટર સ્પેશિયલ પેઇડ પ્રશ્ન ${i + 1}: ભાડા ગણતરી અને લગેજ નિયમ?',
-          options: ['વિકલ્પ A (સાચો)', 'વિકલ્પ B', 'વિકલ્પ C', 'વિકલ્પ D'],
-          correctIndex: 0,
-        ),
-      ),
-    ),
-    SpecialExamModel(
-      id: 'spec_driv_1',
-      title: 'ડ્રાઈવર એન્જિન & સેફ્ટી સ્પેશિયલ ટેસ્ટ',
-      targetRole: 'ડ્રાઈવર',
-      price: 59,
-      durationMinutes: 60,
-      questions: List.generate(
-        100,
-        (i) => CompleteQuestion(
-          question: 'ડ્રાઈવર સ્પેશિયલ પેઇડ પ્રશ્ન ${i + 1}: એન્જિન ફોલ્ટ અને કૂલિંગ સિસ્ટમ?',
-          options: ['વિકલ્પ A (સાચો)', 'વિકલ્પ B', 'વિકલ્પ C', 'વિકલ્પ D'],
-          correctIndex: 0,
-        ),
-      ),
-    ),
-  ];
+  factory SpecialExamModel.fromMap(Map<String, dynamic> map, String docId) => SpecialExamModel(
+    id: docId,
+    title: map['title'] ?? '',
+    targetRole: map['targetRole'] ?? '',
+    price: map['price'] ?? 0,
+    durationMinutes: map['durationMinutes'] ?? 60,
+    questions: (map['questions'] as List<dynamic>?)
+            ?.map((item) => CompleteQuestion.fromMap(Map<String, dynamic>.from(item)))
+            .toList() ??
+        [],
+  );
 }
 
-// ---------------- ૧. માસ્ટર રાઉટર ----------------
+// ૧. માસ્ટર રાઉટર
 class MasterAppRouter extends StatefulWidget {
   const MasterAppRouter({super.key});
 
@@ -212,14 +105,14 @@ class _MasterAppRouterState extends State<MasterAppRouter> {
   String _currentUserEmail = '';
   String _currentUserName = '';
 
-  void _onGoogleSignIn(String email, String defaultName) {
+  void _onUserAuthenticated(String email, String defaultName) {
     setState(() {
       _currentUserEmail = email;
       if (email.toLowerCase() == _adminEmail.toLowerCase()) {
         _currentUserName = 'Thakor XYZ (Admin)';
         _currentStep = 4;
       } else {
-        _currentUserName = defaultName;
+        _currentUserName = defaultName.isNotEmpty ? defaultName : 'વિદ્યાર્થી મિત્ર';
         _currentStep = 2;
       }
     });
@@ -232,7 +125,11 @@ class _MasterAppRouterState extends State<MasterAppRouter> {
     });
   }
 
-  void _onLogout() {
+  Future<void> _onLogout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      await GoogleSignIn().signOut();
+    } catch (_) {}
     setState(() {
       _currentStep = 1;
       _currentUserEmail = '';
@@ -244,7 +141,7 @@ class _MasterAppRouterState extends State<MasterAppRouter> {
   Widget build(BuildContext context) {
     switch (_currentStep) {
       case 1:
-        return CompleteLoginScreen(onLogin: _onGoogleSignIn);
+        return CompleteLoginScreen(onLoginSuccess: _onUserAuthenticated);
       case 2:
         return CompleteProfileScreen(
           suggestedName: _currentUserName,
@@ -260,18 +157,105 @@ class _MasterAppRouterState extends State<MasterAppRouter> {
         return CompleteAdminPanel(
           adminEmail: _currentUserEmail,
           onLogout: _onLogout,
-          onTestsUpdated: () => setState(() {}),
         );
       default:
-        return CompleteLoginScreen(onLogin: _onGoogleSignIn);
+        return CompleteLoginScreen(onLoginSuccess: _onUserAuthenticated);
     }
   }
 }
 
-// ---------------- ૨. લૉગિન પેજ ----------------
-class CompleteLoginScreen extends StatelessWidget {
-  final Function(String email, String name) onLogin;
-  const CompleteLoginScreen({super.key, required this.onLogin});
+// ૨. લૉગિન પેજ (Firebase Email/Password + Google Sign-In)
+class CompleteLoginScreen extends StatefulWidget {
+  final Function(String email, String name) onLoginSuccess;
+  const CompleteLoginScreen({super.key, required this.onLoginSuccess});
+
+  @override
+  State<CompleteLoginScreen> createState() => _CompleteLoginScreenState();
+}
+
+class _CompleteLoginScreenState extends State<CompleteLoginScreen> {
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  bool _isLoading = false;
+  bool _isSignUp = false;
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleEmailAuth() async {
+    final email = _emailCtrl.text.trim();
+    final password = _passCtrl.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('કૃપા કરીને ઈમેઇલ અને પાસવર્ડ લખો')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      UserCredential userCred;
+      if (_isSignUp) {
+        userCred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      } else {
+        userCred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      }
+      final user = userCred.user;
+      if (user != null) {
+        widget.onLoginSuccess(user.email ?? email, user.displayName ?? '');
+      }
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(backgroundColor: Colors.red, content: Text(e.message ?? 'Authentication error')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(backgroundColor: Colors.red, content: Text('ભૂલ: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      final user = userCredential.user;
+      if (user != null) {
+        widget.onLoginSuccess(user.email ?? googleUser.email, user.displayName ?? googleUser.displayName ?? '');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(backgroundColor: Colors.red, content: Text('Google Sign-In Error: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -303,7 +287,7 @@ class CompleteLoginScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 25),
+              const SizedBox(height: 20),
               const Text('YOUR NEXT STOP: SELECTION', style: TextStyle(color: accentYellow, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
               const SizedBox(height: 6),
               const Text('Study with a route.\nArrive ready.', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold, height: 1.2)),
@@ -312,7 +296,7 @@ class CompleteLoginScreen extends StatelessWidget {
                 'A focused practice desk for GSRTC conductor and driver candidates. Gujarati-friendly from the first question.',
                 style: TextStyle(color: Colors.white.withAlpha(200), fontSize: 12),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.all(22.0),
                 decoration: BoxDecoration(
@@ -323,28 +307,80 @@ class CompleteLoginScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('Sign In / પ્રવેશ કરો', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
-                    const SizedBox(height: 8),
-                    Text('સુરક્ષિત રીતે તૈયારી શરૂ કરવા Google વડે જોડાઓ', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                    const SizedBox(height: 22),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: BorderSide(color: Colors.grey.shade300, width: 1.5),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    Text(_isSignUp ? 'નવું એકાઉન્ટ બનાવો' : 'Sign In / પ્રવેશ કરો', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
+                    const SizedBox(height: 6),
+                    Text(
+                      _isSignUp ? 'વિગતો ભરીને નોંધણી કરો' : 'સુરક્ષિત રીતે તૈયારી શરૂ કરવા લૉગિન કરો',
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                    ),
+                    const SizedBox(height: 18),
+                    TextField(
+                      controller: _emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        labelText: 'ઈમેઇલ (Email)',
+                        prefixIcon: const Icon(Icons.email_outlined),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
-                      onPressed: () => onLogin('student.candidate@gmail.com', 'વિદ્યાર્થી મિત્ર'),
-                      icon: Image.network(
-                        'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/480px-Google_%22G%22_logo.svg.png',
-                        height: 20,
-                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, color: Colors.red, size: 24),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _passCtrl,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: 'પાસવર્ડ (Password)',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
-                      label: const Text('Continue with Google', style: TextStyle(color: Colors.black87, fontSize: 15, fontWeight: FontWeight.w600)),
                     ),
                     const SizedBox(height: 16),
+                    if (_isLoading)
+                      const Center(child: CircularProgressIndicator())
+                    else ...[
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryGreen,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: _handleEmailAuth,
+                        child: Text(_isSignUp ? 'Sign Up' : 'Log In', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 4),
+                      TextButton(
+                        onPressed: () => setState(() => _isSignUp = !_isSignUp),
+                        child: Text(_isSignUp ? 'પહેલેથી એકાઉન્ટ છે? Log In' : 'નવા છો? એકાઉન્ટ બનાવો (Sign Up)', style: const TextStyle(fontSize: 12)),
+                      ),
+                      const Row(
+                        children: [
+                          Expanded(child: Divider()),
+                          Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('અથવા', style: TextStyle(color: Colors.grey, fontSize: 12))),
+                          Expanded(child: Divider()),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: _handleGoogleSignIn,
+                        icon: Image.network(
+                          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/480px-Google_%22G%22_logo.svg.png',
+                          height: 20,
+                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, color: Colors.red, size: 24),
+                        ),
+                        label: const Text('Continue with Google', style: TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                    const SizedBox(height: 10),
                     Center(
                       child: TextButton.icon(
-                        onPressed: () => onLogin('thakor.xyz.admin@gsrtc.in', 'Thakor XYZ'),
+                        onPressed: () => widget.onLoginSuccess('thakor.xyz.admin@gsrtc.in', 'Thakor XYZ'),
                         icon: const Icon(Icons.security, size: 16, color: primaryGreen),
                         label: const Text('[ગુપ્ત એડમિન એક્સેસ ટેસ્ટ]', style: TextStyle(fontSize: 11, color: primaryGreen, fontWeight: FontWeight.bold)),
                       ),
@@ -352,34 +388,15 @@ class CompleteLoginScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 25),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildStatItem('06', 'official subjects'),
-                  _buildStatItem('Mega', 'full mock exams'),
-                  _buildStatItem('Special', 'admin paid tests'),
-                ],
-              ),
             ],
           ),
         ),
       ),
     );
   }
-
-  Widget _buildStatItem(String count, String label) {
-    return Column(
-      children: [
-        Text(count, style: const TextStyle(color: Color(0xFFE5A93C), fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 2),
-        Text(label, style: TextStyle(color: Colors.white.withAlpha(160), fontSize: 10)),
-      ],
-    );
-  }
 }
 
-// ---------------- ૩. પ્રોફાઇલ પેજ ----------------
+// ૩. પ્રોફાઇલ પેજ
 class CompleteProfileScreen extends StatefulWidget {
   final String suggestedName;
   final Function(String) onComplete;
@@ -413,11 +430,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
     return Scaffold(
       backgroundColor: primaryGreen,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: widget.onBack),
-      ),
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: widget.onBack)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -469,7 +482,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   }
 }
 
-// ---------------- ૪. હોમ પેજ ----------------
+// ૪. હોમ પેજ
 class MainExamHomeScreen extends StatelessWidget {
   final String candidateName;
   final VoidCallback onLogout;
@@ -515,7 +528,6 @@ class MainExamHomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-
             InkWell(
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RoleExamHubScreen(role: 'કંડક્ટર'))),
               child: Container(
@@ -545,7 +557,6 @@ class MainExamHomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-
             InkWell(
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RoleExamHubScreen(role: 'ડ્રાઈવર'))),
               child: Container(
@@ -574,10 +585,6 @@ class MainExamHomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-
-            // AdMob Placeholder Widget
-            const AdMobBannerWidget(),
           ],
         ),
       ),
@@ -585,7 +592,7 @@ class MainExamHomeScreen extends StatelessWidget {
   }
 }
 
-// ---------------- ૫. એક્ઝામ હબ ----------------
+// ૫. એક્ઝામ હબ (Cloud Firestore થી લાઈવ રીઅલ-ટાઇમ સિંક)
 class RoleExamHubScreen extends StatefulWidget {
   final String role;
   const RoleExamHubScreen({super.key, required this.role});
@@ -598,8 +605,6 @@ class _RoleExamHubScreenState extends State<RoleExamHubScreen> {
   final Set<String> _unlockedExamIds = {};
 
   void _showPaymentDialog(SpecialExamModel exam) {
-    final accessCodeCtrl = TextEditingController();
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -611,92 +616,60 @@ class _RoleExamHubScreenState extends State<RoleExamHubScreen> {
             Text('સ્પેશિયલ ટેસ્ટ અનલૉક'),
           ],
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(exam.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              const SizedBox(height: 8),
-              const Text('સત્તાવાર ફી:', style: TextStyle(fontSize: 13, color: Colors.grey)),
-              const SizedBox(height: 4),
-              Center(
-                child: Text(
-                  '₹ ${exam.price}',
-                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green),
-                ),
+        content: Column(
+          mainAxisSize: minAxisSize(),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(exam.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            const SizedBox(height: 8),
+            const Text('એડમિન દ્વારા નિર્ધારિત સત્તાવાર ફી:'),
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                '₹ ${exam.price}',
+                style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: Colors.green),
               ),
-              const SizedBox(height: 4),
-              Center(
-                child: Text('(${exam.questions.length} પ્રશ્નો • ${exam.durationMinutes} મિનિટ)', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              ),
-              const Divider(height: 24),
-
-              // Option 1: Direct UPI Button
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade700,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                icon: const Icon(Icons.payment, size: 18),
-                label: const Text('UPI દ્વારા ચૂકવો (GPay / PhonePe)'),
-                onPressed: () {
-                  Navigator.pop(context);
-                  setState(() => _unlockedExamIds.add(exam.id));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(backgroundColor: Colors.green, content: Text('ચૂકવણી સફળ! સ્પેશિયલ ટેસ્ટ અનલૉક થઈ ગયો! 🎉')),
-                  );
-                },
-              ),
-              const SizedBox(height: 14),
-
-              const Center(child: Text('— અથવા Access Code વાપરો —', style: TextStyle(fontSize: 11, color: Colors.grey))),
-              const SizedBox(height: 10),
-
-              TextField(
-                controller: accessCodeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Access Code',
-                  hintText: 'દા.ત. PASS2026',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: Text('(${exam.questions.length} પ્રશ્નો • ${exam.durationMinutes} મિનિટ)', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            ),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('રદ કરો')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D5C46), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
             onPressed: () {
-              final code = accessCodeCtrl.text.trim().toUpperCase();
-              if (code == 'PASS2026' || code == 'GSRTC2026' || code == 'ADMIN') {
-                Navigator.pop(context);
-                setState(() => _unlockedExamIds.add(exam.id));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(backgroundColor: Colors.green, content: Text('Access Code માન્ય છે! ટેસ્ટ અનલૉક થઈ ગયો! 🎉')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(backgroundColor: Colors.red, content: Text('અમાન્ય Access Code! ફરી પ્રયાસ કરો.')),
-                );
-              }
+              Navigator.pop(context);
+              setState(() => _unlockedExamIds.add(exam.id));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(backgroundColor: Colors.green, content: Text('ચૂકવણી સફળ! સ્પેશિયલ ટેસ્ટ અનલૉક થઈ ગયો છે! 🎉')),
+              );
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ExamQuizScreen(
+                    role: widget.role,
+                    testTitle: exam.title,
+                    questions: exam.questions,
+                    durationSeconds: exam.durationMinutes * 60,
+                  ),
+                ),
+              );
             },
-            child: const Text('કોડથી અનલૉક'),
+            child: const Text('Pay & Start Test'),
           ),
         ],
       ),
     );
   }
 
+  MainAxisSize minAxisSize() => MainAxisSize.min;
+
   @override
   Widget build(BuildContext context) {
     final themeColor = widget.role == 'કંડક્ટર' ? const Color(0xFF1976D2) : const Color(0xFF00796B);
-    final specialTests = AppDataStore.activeSpecialTests.where((t) => t.targetRole == widget.role).toList();
-    final fullMockList = AppDataStore.fullMockQuestions[widget.role] ?? [];
 
     final List<Map<String, dynamic>> subjects = widget.role == 'કંડક્ટર'
         ? [
@@ -725,6 +698,7 @@ class _RoleExamHubScreenState extends State<RoleExamHubScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // ૧. આખો ભેગો મોક ટેસ્ટ
           Card(
             elevation: 3,
             color: Colors.deepOrange.shade50,
@@ -733,16 +707,34 @@ class _RoleExamHubScreenState extends State<RoleExamHubScreen> {
               contentPadding: const EdgeInsets.all(16),
               leading: const CircleAvatar(radius: 24, backgroundColor: Colors.deepOrange, child: Icon(Icons.star, color: Colors.white)),
               title: const Text('આખો ભેગો મોક ટેસ્ટ (Full Exam)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              subtitle: Text('બધા ૬ વિષયોમાંથી કુલ ${fullMockList.length} પ્રશ્નો • ૧ કલાક સમય'),
+              subtitle: const Text('બધા ૬ વિષયોમાંથી કુલ પ્રશ્નો • ૧ કલાક સમય'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
+              onTap: () async {
+                final snapshot = await FirebaseFirestore.instance.collection('full_mock').doc(widget.role).get();
+                List<CompleteQuestion> qList = [];
+                if (snapshot.exists && snapshot.data()?['questions'] != null) {
+                  qList = (snapshot.data()!['questions'] as List)
+                      .map((e) => CompleteQuestion.fromMap(Map<String, dynamic>.from(e)))
+                      .toList();
+                }
+                if (qList.isEmpty) {
+                  qList = List.generate(
+                    50,
+                    (i) => CompleteQuestion(
+                      question: '${widget.role} મોડેલ પ્રશ્ન ${i + 1}: GSRTC સત્તાવાર નિયમ?',
+                      options: ['સાચો વિકલ્પ', 'વિકલ્પ B', 'વિકલ્પ C', 'વિકલ્પ D'],
+                      correctIndex: 0,
+                    ),
+                  );
+                }
+                if (!context.mounted) return;
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => ExamQuizScreen(
                       role: widget.role,
                       testTitle: '${widget.role} ફુલ મોક ટેસ્ટ',
-                      questions: fullMockList,
+                      questions: qList,
                       durationSeconds: 3600,
                     ),
                   ),
@@ -752,88 +744,84 @@ class _RoleExamHubScreenState extends State<RoleExamHubScreen> {
           ),
           const SizedBox(height: 16),
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('સ્પેશિયલ પેઇડ ટેસ્ટ્સ (Admin Added):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: Colors.amber.shade200, borderRadius: BorderRadius.circular(8)),
-                child: Text('${specialTests.length} સક્રિય', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
+          // ૨. સ્પેશિયલ પેઇડ ટેસ્ટ્સ (Cloud Firestore લાઈવ)
+          const Text('સ્પેશિયલ પેઇડ ટેસ્ટ્સ (Admin Added):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 10),
 
-          if (specialTests.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-              child: const Center(child: Text('અત્યારે કોઈ સ્પેશિયલ ટેસ્ટ સક્રિય નથી.', style: TextStyle(color: Colors.grey))),
-            )
-          else
-            ...specialTests.map((exam) {
-              final isUnlocked = _unlockedExamIds.contains(exam.id);
-              return Card(
-                elevation: 3,
-                margin: const EdgeInsets.only(bottom: 12),
-                color: Colors.amber.shade50,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: Colors.amber.shade600)),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.amber.shade700,
-                    child: Icon(isUnlocked ? Icons.lock_open : Icons.lock, color: Colors.white),
-                  ),
-                  title: Row(
-                    children: [
-                      Expanded(child: Text(exam.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(8)),
-                        child: Text('₹ ${exam.price}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('special_tests').where('targetRole', isEqualTo: widget.role).snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()));
+              }
+              final docs = snapshot.data?.docs ?? [];
+              if (docs.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                  child: const Center(child: Text('અત્યારે કોઈ સ્પેશિયલ ટેસ્ટ સક્રિય નથી.', style: TextStyle(color: Colors.grey))),
+                );
+              }
+
+              final specialTests = docs.map((doc) => SpecialExamModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+
+              return Column(
+                children: specialTests.map((exam) {
+                  final isUnlocked = _unlockedExamIds.contains(exam.id);
+                  return Card(
+                    elevation: 3,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    color: Colors.amber.shade50,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: Colors.amber.shade600)),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.amber.shade700,
+                        child: Icon(isUnlocked ? Icons.lock_open : Icons.lock, color: Colors.white),
                       ),
-                    ],
-                  ),
-                  subtitle: Text('${exam.questions.length} પ્રશ્નો • ${exam.durationMinutes} મિનિટ • ${isUnlocked ? 'અનલૉક કરેલ' : 'ક્લિક કરીને અનલૉક કરો'}'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                  onTap: () {
-                    if (isUnlocked) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ExamQuizScreen(
-                            role: widget.role,
-                            testTitle: exam.title,
-                            questions: exam.questions,
-                            durationSeconds: exam.durationMinutes * 60,
+                      title: Row(
+                        children: [
+                          Expanded(child: Text(exam.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(8)),
+                            child: Text('₹ ${exam.price}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                           ),
-                        ),
-                      );
-                    } else {
-                      _showPaymentDialog(exam);
-                    }
-                  },
-                ),
+                        ],
+                      ),
+                      subtitle: Text('${exam.questions.length} પ્રશ્નો • ${exam.durationMinutes} મિનિટ • ${isUnlocked ? 'અનલૉક કરેલ' : 'ક્લિક કરીને અનલૉક કરો'}'),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                      onTap: () {
+                        if (isUnlocked) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ExamQuizScreen(
+                                role: widget.role,
+                                testTitle: exam.title,
+                                questions: exam.questions,
+                                durationSeconds: exam.durationMinutes * 60,
+                              ),
+                            ),
+                          );
+                        } else {
+                          _showPaymentDialog(exam);
+                        }
+                      },
+                    ),
+                  );
+                }).toList(),
               );
-            }),
+            },
+          ),
 
           const SizedBox(height: 18),
 
-          const Text('વિષયવાર પ્રેક્ટિસ ટેસ્ટ (૫૦ પ્રશ્નો | ૩૦ મિનિટ):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          // ૩. વિષયવાર પ્રેક્ટિસ ટેસ્ટ
+          const Text('વિષયવાર પ્રેક્ટિસ ટેસ્ટ (૩૦ મિનિટ):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 10),
           ...subjects.map((sub) {
-            final subKey = '${widget.role}_${sub['title']}';
-            final currentSubQuestions = AppDataStore.subjectQuestions[subKey] ??
-                List.generate(
-                  50,
-                  (i) => CompleteQuestion(
-                    question: '[${sub['title']}] પ્રશ્ન ${i + 1}: સત્તાવાર મોડેલ પ્રશ્ન વિગત?',
-                    options: ['વિકલ્પ A (સાચો)', 'વિકલ્પ B', 'વિકલ્પ C', 'વિકલ્પ D'],
-                    correctIndex: 0,
-                  ),
-                );
-
+            final docKey = '${widget.role}_${sub['title']}';
             return Card(
               elevation: 2,
               margin: const EdgeInsets.only(bottom: 10),
@@ -844,16 +832,34 @@ class _RoleExamHubScreenState extends State<RoleExamHubScreen> {
                   child: Icon(sub['icon'] as IconData, color: themeColor),
                 ),
                 title: Text(sub['title'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                subtitle: Text('${sub['desc']} (${currentSubQuestions.length} પ્રશ્નો)', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                subtitle: Text('${sub['desc']}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                onTap: () {
+                onTap: () async {
+                  final snapshot = await FirebaseFirestore.instance.collection('subject_tests').doc(docKey).get();
+                  List<CompleteQuestion> questions = [];
+                  if (snapshot.exists && snapshot.data()?['questions'] != null) {
+                    questions = (snapshot.data()!['questions'] as List)
+                        .map((e) => CompleteQuestion.fromMap(Map<String, dynamic>.from(e)))
+                        .toList();
+                  }
+                  if (questions.isEmpty) {
+                    questions = List.generate(
+                      25,
+                      (i) => CompleteQuestion(
+                        question: '[${sub['title']}] પ્રશ્ન ${i + 1}: GSRTC સિલેબસ આધારિત પ્રશ્ન?',
+                        options: ['સાચો જવાબ A', 'જવાબ B', 'જવાબ C', 'જવાબ D'],
+                        correctIndex: 0,
+                      ),
+                    );
+                  }
+                  if (!context.mounted) return;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => ExamQuizScreen(
                         role: widget.role,
                         testTitle: sub['title'] as String,
-                        questions: currentSubQuestions,
+                        questions: questions,
                         durationSeconds: 1800,
                       ),
                     ),
@@ -868,7 +874,7 @@ class _RoleExamHubScreenState extends State<RoleExamHubScreen> {
   }
 }
 
-// ---------------- ૬. પરીક્ષા સ્ક્રીન ----------------
+// ૬. પરીક્ષા સ્ક્રીન
 class ExamQuizScreen extends StatefulWidget {
   final String role;
   final String testTitle;
@@ -943,13 +949,6 @@ class _ExamQuizScreenState extends State<ExamQuizScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.questions.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: Text(widget.testTitle)),
-        body: const Center(child: Text('આ ટેસ્ટમાં કોઈ પ્રશ્નો મળ્યા નથી.')),
-      );
-    }
-
     final currentQ = widget.questions[currentIndex];
     final themeColor = widget.role == 'કંડક્ટર' ? const Color(0xFF1976D2) : const Color(0xFF00796B);
 
@@ -1055,17 +1054,15 @@ class _ExamQuizScreenState extends State<ExamQuizScreen> {
   }
 }
 
-// ---------------- ૭. એડમિન પેનલ (Bulk Upload) ----------------
+// ૭. એડમિન પેનલ (Cloud Firestore માં કાયમી Bulk Upload)
 class CompleteAdminPanel extends StatefulWidget {
   final String adminEmail;
   final VoidCallback onLogout;
-  final VoidCallback onTestsUpdated;
 
   const CompleteAdminPanel({
     super.key,
     required this.adminEmail,
     required this.onLogout,
-    required this.onTestsUpdated,
   });
 
   @override
@@ -1074,6 +1071,7 @@ class CompleteAdminPanel extends StatefulWidget {
 
 class _CompleteAdminPanelState extends State<CompleteAdminPanel> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isUploading = false;
 
   String _bulkTargetRole = 'કંડક્ટર';
   String _bulkExamType = 'આખો ભેગો મોક ટેસ્ટ';
@@ -1137,48 +1135,50 @@ class _CompleteAdminPanelState extends State<CompleteAdminPanel> with SingleTick
     super.dispose();
   }
 
-  void _uploadGeneralBulkQuestions() {
+  Future<void> _uploadGeneralBulkQuestions() async {
     final text = _generalBulkJsonCtrl.text.trim();
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('કૃપા કરીને JSON ડેટા પેસ્ટ કરો')));
       return;
     }
 
+    setState(() => _isUploading = true);
     try {
       final List<dynamic> decoded = jsonDecode(text);
-      List<CompleteQuestion> newQuestions = [];
+      List<Map<String, dynamic>> rawList = [];
       for (var item in decoded) {
-        newQuestions.add(
-          CompleteQuestion(
-            question: item['question'] as String,
-            options: List<String>.from(item['options'] as List),
-            correctIndex: item['correctIndex'] as int,
-          ),
-        );
+        rawList.add({
+          'question': item['question'],
+          'options': List<String>.from(item['options']),
+          'correctIndex': item['correctIndex'],
+        });
       }
 
-      setState(() {
-        if (_bulkExamType == 'આખો ભેગો મોક ટેસ્ટ') {
-          AppDataStore.fullMockQuestions[_bulkTargetRole]?.insertAll(0, newQuestions);
-        } else {
-          final subKey = '${_bulkTargetRole}_$_bulkSelectedSubject';
-          AppDataStore.subjectQuestions.putIfAbsent(subKey, () => []);
-          AppDataStore.subjectQuestions[subKey]!.insertAll(0, newQuestions);
-        }
-      });
-      widget.onTestsUpdated();
+      if (_bulkExamType == 'આખો ભેગો મોક ટેસ્ટ') {
+        await FirebaseFirestore.instance.collection('full_mock').doc(_bulkTargetRole).set({
+          'questions': FieldValue.arrayUnion(rawList),
+        }, SetOptions(merge: true));
+      } else {
+        final docKey = '${_bulkTargetRole}_$_bulkSelectedSubject';
+        await FirebaseFirestore.instance.collection('subject_tests').doc(docKey).set({
+          'questions': FieldValue.arrayUnion(rawList),
+        }, SetOptions(merge: true));
+      }
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(backgroundColor: Colors.green, content: Text('સફળ! ${newQuestions.length} પ્રશ્નો [$_bulkTargetRole - $_bulkExamType] માં ઉમેરાઈ ગયા! 🎉')),
+        SnackBar(backgroundColor: Colors.green, content: Text('સફળ! Cloud Firestore માં ${rawList.length} પ્રશ્નો કાયમી સેવ થઈ ગયા! 🎉')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(backgroundColor: Colors.redAccent, content: Text('JSON ફોર્મેટમાં ભૂલ છે! બરાબર ચકાસો.')),
+        SnackBar(backgroundColor: Colors.redAccent, content: Text('JSON ફોર્મેટ અથવા નેટવર્ક ભૂલ: $e')),
       );
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
-  void _uploadSpecialBulkTest() {
+  Future<void> _uploadSpecialBulkTest() async {
     final title = _specialTitleCtrl.text.trim();
     final price = int.tryParse(_specialPriceCtrl.text.trim()) ?? 49;
     final duration = int.tryParse(_specialDurationCtrl.text.trim()) ?? 60;
@@ -1189,41 +1189,38 @@ class _CompleteAdminPanelState extends State<CompleteAdminPanel> with SingleTick
       return;
     }
 
+    setState(() => _isUploading = true);
     try {
       final List<dynamic> decoded = jsonDecode(jsonText);
-      List<CompleteQuestion> loadedQuestions = [];
+      List<Map<String, dynamic>> rawList = [];
       for (var item in decoded) {
-        loadedQuestions.add(
-          CompleteQuestion(
-            question: item['question'] as String,
-            options: List<String>.from(item['options'] as List),
-            correctIndex: item['correctIndex'] as int,
-          ),
-        );
+        rawList.add({
+          'question': item['question'],
+          'options': List<String>.from(item['options']),
+          'correctIndex': item['correctIndex'],
+        });
       }
 
-      final newExam = SpecialExamModel(
-        id: 'spec_${DateTime.now().millisecondsSinceEpoch}',
-        title: title,
-        targetRole: _specialTargetRole,
-        price: price,
-        durationMinutes: duration,
-        questions: loadedQuestions,
-      );
-
-      setState(() {
-        AppDataStore.activeSpecialTests.insert(0, newExam);
+      await FirebaseFirestore.instance.collection('special_tests').add({
+        'title': title,
+        'targetRole': _specialTargetRole,
+        'price': price,
+        'durationMinutes': duration,
+        'questions': rawList,
+        'createdAt': FieldValue.serverTimestamp(),
       });
-      widget.onTestsUpdated();
 
       _specialTitleCtrl.clear();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(backgroundColor: Colors.green, content: Text('સ્પેશિયલ પેઇડ ટેસ્ટ "$title" (${loadedQuestions.length} પ્રશ્નો - ₹$price) લાઈવ થઈ ગયો! 🎉')),
+        SnackBar(backgroundColor: Colors.green, content: Text('સ્પેશિયલ ટેસ્ટ "$title" Cloud Firestore માં કાયમી લાઈવ થઈ ગયો! 🎉')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(backgroundColor: Colors.redAccent, content: Text('સ્પેશિયલ પ્રશ્નોના JSON ફોર્મેટમાં ભૂલ છે!')),
+        SnackBar(backgroundColor: Colors.redAccent, content: Text('ભૂલ: $e')),
       );
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -1244,231 +1241,191 @@ class _CompleteAdminPanelState extends State<CompleteAdminPanel> with SingleTick
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           tabs: const [
-            Tab(icon: Icon(Icons.upload_file), text: 'મોક / વિષયો Bulk Upload'),
-            Tab(icon: Icon(Icons.workspace_premium), text: 'સ્પેશિયલ પેઇડ Bulk Upload'),
+            Tab(icon: Icon(Icons.upload_file), text: 'મોક / વિષયો Bulk'),
+            Tab(icon: Icon(Icons.workspace_premium), text: 'સ્પેશિયલ પેઇડ Bulk'),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: _isUploading
+          ? const Center(child: CircularProgressIndicator())
+          : TabBarView(
+              controller: _tabController,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(10)),
-                  child: const Row(
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Icon(Icons.flash_on, color: Colors.blue),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'કંડક્ટર કે ડ્રાઈવરના "આખો ભેગો મોક ટેસ્ટ" અથવા "૬ વિષયવાર ટેસ્ટ" માં સેંકડો પ્રશ્નો એકસાથે પેસ્ટ કરીને અપલોડ કરો.',
-                          style: TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(10)),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.cloud_sync, color: Colors.blue),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'પ્રશ્નો અહીંથી સીધા Cloud Firestore માં અપલોડ થશે અને તમામ યુઝર્સને લાઈવ દેખાશે.',
+                                style: TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
                         ),
+                      ),
+                      const SizedBox(height: 14),
+                      DropdownButtonFormField<String>(
+                        initialValue: _bulkTargetRole,
+                        decoration: InputDecoration(labelText: 'વિભાગ પસંદ કરો', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
+                        items: const [
+                          DropdownMenuItem(value: 'કંડક્ટર', child: Text('કંડક્ટર પરીક્ષા')),
+                          DropdownMenuItem(value: 'ડ્રાઈવર', child: Text('ડ્રાઈવર પરીક્ષા')),
+                        ],
+                        onChanged: (val) {
+                          setState(() {
+                            _bulkTargetRole = val!;
+                            _bulkSelectedSubject = val == 'કંડક્ટર' ? _conductorSubjects[0] : _driverSubjects[0];
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: _bulkExamType,
+                        decoration: InputDecoration(labelText: 'ટેસ્ટનો પ્રકાર પસંદ કરો', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
+                        items: const [
+                          DropdownMenuItem(value: 'આખો ભેગો મોક ટેસ્ટ', child: Text('આખો ભેગો મોક ટેસ્ટ (Full Mock)')),
+                          DropdownMenuItem(value: 'વિષયવાર ટેસ્ટ', child: Text('૬ સત્તાવાર વિષયવાર ટેસ્ટ')),
+                        ],
+                        onChanged: (val) => setState(() => _bulkExamType = val!),
+                      ),
+                      const SizedBox(height: 12),
+                      if (_bulkExamType == 'વિષયવાર ટેસ્ટ') ...[
+                        DropdownButtonFormField<String>(
+                          initialValue: currentSubjectList.contains(_bulkSelectedSubject) ? _bulkSelectedSubject : currentSubjectList[0],
+                          decoration: InputDecoration(labelText: 'વિષય પસંદ કરો', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
+                          items: currentSubjectList.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 13)))).toList(),
+                          onChanged: (val) => setState(() => _bulkSelectedSubject = val!),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      TextFormField(
+                        controller: _generalBulkJsonCtrl,
+                        maxLines: 12,
+                        style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                        decoration: InputDecoration(
+                          labelText: 'પ્રશ્નોનો JSON Bulk Data',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryGreen,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: _uploadGeneralBulkQuestions,
+                        icon: const Icon(Icons.cloud_upload),
+                        label: const Text('Cloud માં કાયમી સેવ કરો (Bulk Upload)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
-
-                DropdownButtonFormField<String>(
-                  initialValue: _bulkTargetRole,
-                  decoration: InputDecoration(labelText: 'વિભાગ પસંદ કરો', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
-                  items: const [
-                    DropdownMenuItem(value: 'કંડક્ટર', child: Text('કંડક્ટર પરીક્ષા')),
-                    DropdownMenuItem(value: 'ડ્રાઈવર', child: Text('ડ્રાઈવર પરીક્ષા')),
-                  ],
-                  onChanged: (val) {
-                    setState(() {
-                      _bulkTargetRole = val!;
-                      _bulkSelectedSubject = val == 'કંડક્ટર' ? _conductorSubjects[0] : _driverSubjects[0];
-                    });
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                DropdownButtonFormField<String>(
-                  initialValue: _bulkExamType,
-                  decoration: InputDecoration(labelText: 'ટેસ્ટનો પ્રકાર પસંદ કરો', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
-                  items: const [
-                    DropdownMenuItem(value: 'આખો ભેગો મોક ટેસ્ટ', child: Text('આખો ભેગો મોક ટેસ્ટ (Full Mock Exam)')),
-                    DropdownMenuItem(value: 'વિષયવાર ટેસ્ટ', child: Text('૬ સત્તાવાર વિષયવાર ટેસ્ટ (Subject-wise)')),
-                  ],
-                  onChanged: (val) => setState(() => _bulkExamType = val!),
-                ),
-                const SizedBox(height: 12),
-
-                if (_bulkExamType == 'વિષયવાર ટેસ્ટ') ...[
-                  DropdownButtonFormField<String>(
-                    initialValue: currentSubjectList.contains(_bulkSelectedSubject) ? _bulkSelectedSubject : currentSubjectList[0],
-                    decoration: InputDecoration(labelText: 'વિષય પસંદ કરો', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
-                    items: currentSubjectList.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 13)))).toList(),
-                    onChanged: (val) => setState(() => _bulkSelectedSubject = val!),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-
-                TextFormField(
-                  controller: _generalBulkJsonCtrl,
-                  maxLines: 12,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-                  decoration: InputDecoration(
-                    labelText: 'પ્રશ્નોનો JSON Bulk Data',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryGreen,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: _uploadGeneralBulkQuestions,
-                  icon: const Icon(Icons.cloud_upload),
-                  label: const Text('બધા પ્રશ્નો એકસાથે અપલોડ કરો (Bulk Upload)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-          ),
-
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.amber.shade300)),
-                  child: const Row(
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Icon(Icons.workspace_premium, color: Colors.amber),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'અહીંથી તમે નવો સ્પેશિયલ પેઇડ ટેસ્ટ બનાવીને તેના તમામ પ્રશ્નો એકસાથે JSON માં અપલોડ કરી શકો છો.',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.amber.shade300)),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.workspace_premium, color: Colors.amber),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'નવો સ્પેશિયલ પેઇડ ટેસ્ટ સીધો Cloud Firestore માં લાઈવ થશે.',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
                         ),
+                      ),
+                      const SizedBox(height: 14),
+                      DropdownButtonFormField<String>(
+                        initialValue: _specialTargetRole,
+                        decoration: InputDecoration(labelText: 'વિભાગ પસંદ કરો', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
+                        items: const [
+                          DropdownMenuItem(value: 'કંડક્ટર', child: Text('કંડક્ટર પરીક્ષા')),
+                          DropdownMenuItem(value: 'ડ્રાઈવર', child: Text('ડ્રાઈવર પરીક્ષા')),
+                        ],
+                        onChanged: (val) => setState(() => _specialTargetRole = val!),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _specialTitleCtrl,
+                        decoration: InputDecoration(
+                          labelText: 'સ્પેશિયલ ટેસ્ટનું નામ',
+                          hintText: 'દા.ત. સુપર સિલેક્શન મેગા પેઇડ ટેસ્ટ 2026',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _specialPriceCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'ફી (₹ રૂપિયા)',
+                                prefixText: '₹ ',
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _specialDurationCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'સમય (મિનિટ)',
+                                suffixText: 'મિનિટ',
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _specialBulkJsonCtrl,
+                        maxLines: 10,
+                        style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                        decoration: InputDecoration(
+                          labelText: 'સ્પેશિયલ ટેસ્ટના પ્રશ્નો (JSON Format)',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade700,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: _uploadSpecialBulkTest,
+                        icon: const Icon(Icons.publish),
+                        label: const Text('નવો સ્પેશિયલ ટેસ્ટ લાઈવ કરો (Publish to Cloud)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
-
-                DropdownButtonFormField<String>(
-                  initialValue: _specialTargetRole,
-                  decoration: InputDecoration(labelText: 'વિભાગ પસંદ કરો', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
-                  items: const [
-                    DropdownMenuItem(value: 'કંડક્ટર', child: Text('કંડક્ટર પરીક્ષા')),
-                    DropdownMenuItem(value: 'ડ્રાઈવર', child: Text('ડ્રાઈવર પરીક્ષા')),
-                  ],
-                  onChanged: (val) => setState(() => _specialTargetRole = val!),
-                ),
-                const SizedBox(height: 12),
-
-                TextFormField(
-                  controller: _specialTitleCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'સ્પેશિયલ ટેસ્ટનું નામ',
-                    hintText: 'દા.ત. સુપર સિલેક્શન મેગા પેઇડ ટેસ્ટ 2026',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _specialPriceCtrl,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          labelText: 'ફી (₹ રૂપિયા)',
-                          prefixText: '₹ ',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _specialDurationCtrl,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          labelText: 'સમય (મિનિટ)',
-                          suffixText: 'મિનિટ',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                TextFormField(
-                  controller: _specialBulkJsonCtrl,
-                  maxLines: 10,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-                  decoration: InputDecoration(
-                    labelText: 'સ્પેશિયલ ટેસ્ટના પ્રશ્નો (JSON Format)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: _uploadSpecialBulkTest,
-                  icon: const Icon(Icons.publish),
-                  label: const Text('નવો સ્પેશિયલ ટેસ્ટ લાઈવ કરો (Publish Bulk Test)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------- ૮. ADMOB BANNER પ્લેસહોલ્ડર વિજેટ ----------------
-class AdMobBannerWidget extends StatelessWidget {
-  const AdMobBannerWidget({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 55,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: const Center(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.ad_units, color: Colors.grey, size: 18),
-            SizedBox(width: 8),
-            Text(
-              'AdMob Banner Ad Space',
-              style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
