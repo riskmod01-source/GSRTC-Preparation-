@@ -39,7 +39,9 @@ jobs:
 
       - name: Generate App Icons
         run: dart run flutter_launcher_icons
-
+      - name: Get SHA-1 Key
+        run: cd android && ./gradlew signingReport
+      
       - name: Build APK
         run: flutter build apk --release
 
