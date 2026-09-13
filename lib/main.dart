@@ -5,12 +5,16 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint("Firebase Error: $e");
+  }
   runApp(const GSRTCSarthiApp());
 }
+
 
 class GSRTCSarthiApp extends StatelessWidget {
   const GSRTCSarthiApp({super.key});
