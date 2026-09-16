@@ -379,17 +379,7 @@ class _CompleteLoginScreenState extends State<CompleteLoginScreen> {
                           errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, color: Colors.red, size: 24),
                         ),
                         label: const Text('Continue with Google', style: TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.w600)),
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: () => widget.onLoginSuccess('thakor.xyz.admin@gsrtc.in', 'Thakor XYZ'),
-                        icon: const Icon(Icons.security, size: 16, color: primaryGreen),
-                        label: const Text('[ગુપ્ત એડમિન એક્સેસ ટેસ્ટ]', style: TextStyle(fontSize: 11, color: primaryGreen, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ],
+                      )
                 ),
               ),
             ],
