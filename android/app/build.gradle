@@ -23,8 +23,8 @@ android {
         applicationId "com.example.gsrtc_sarthi"
         minSdkVersion 21
         targetSdkVersion flutter.targetSdkVersion
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
+        versionCode 1
+        versionName "1.0.0"
     }
 
     buildTypes {
