@@ -379,7 +379,8 @@ class _CompleteLoginScreenState extends State<CompleteLoginScreen> {
                           errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, color: Colors.red, size: 24),
                         ),
                         label: const Text('Continue with Google', style: TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.w600)),
-                      )
+                      ),
+                    ],
                 ),
               ),
             ],
